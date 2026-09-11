@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vitalis — AI Symptom Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #070B14;
+    --bg-navy: #0B1220;
+    --bg-navy-light: #101a30;
+    --violet-deep: #4C1D95;
+    --violet: #6D28D9;
+    --violet-soft: #8B5CF6;
+    --teal: #14B8A6;
+    --teal-soft: #5EEAD4;
+    --amber: #F59E0B;
+    --red: #EF4444;
+    --ink: #E8EAF3;
+    --ink-dim: #9AA3B8;
+    --ink-faint: #5C6480;
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-fill: rgba(255,255,255,0.035);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-void);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px 16px;
+    background-image:
+      radial-gradient(ellipse 800px 500px at 15% -10%, rgba(76,29,149,0.35), transparent),
+      radial-gradient(ellipse 600px 400px at 100% 100%, rgba(20,184,166,0.12), transparent);
+  }
+
+  .device {
+    width: 100%;
+    max-width: 390px;
+    height: 780px;
+    background: var(--bg-navy);
+    border-radius: 36px;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow:
+      0 40px 100px -20px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.02),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 26px 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    flex-shrink: 0;
+    z-index: 20;
+  }
+
+  .screen {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: none;
+    flex-direction: column;
+    position: relative;
+    scrollbar-width: none;
+  }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen.active { display: flex; }
+
+  /* ---------- Bottom Nav ---------- */
+  .navbar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 12px 12px 20px;
+    background: rgba(11,18,32,0.85);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--glass-border);
+    z-index: 30;
+  }
+  .navbar button {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 14px;
+    transition: color 0.2s ease;
+  }
+  .navbar button.active { color: var(--teal-soft); }
+  .navbar svg { width: 21px; height: 21px; }
+
+  /* ---------- Typography ---------- */
+  h1, h2, h3 { font-family: 'Sora', sans-serif; letter-spacing: -0.01em; }
+
+  .eyebrow-text {
+    font-size: 13px;
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+
+  /* ================= HOME SCREEN ================= */
+  .home-content { padding: 4px 24px 24px; }
+
+  .greeting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 26px;
+  }
+  .greeting-row h1 { font-size: 24px; font-weight: 700; line-height: 1.25; }
+  .greeting-row .sub { color: var(--ink-dim); font-size: 14px; margin-top: 4px; }
+  .avatar-ring {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--violet), var(--teal));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .ai-hero {
+    position: relative;
+    border-radius: 28px;
+    padding: 26px 22px;
+    background: linear-gradient(155deg, var(--violet-deep) 0%, #2c1065 60%, var(--bg-navy) 130%);
+    border: 1px solid rgba(139,92,246,0.35);
+    overflow: hidden;
+    margin-bottom: 20px;
+    cursor: pointer;
+  }
+  .ai-hero::before {
+    content: '';
+    position: absolute;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,0.5), transparent 70%);
+    top: -90px; right: -70px;
+  }
+  .ai-hero .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--teal-soft);
+    background: rgba(20,184,166,0.12);
+    border: 1px solid rgba(20,184,166,0.3);
+    padding: 4px 10px 4px 8px;
+    border-radius: 100px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--teal-soft); }
+  .ai-hero h2 { font-size: 21px; font-weight: 700; line-height: 1.3; margin-bottom: 8px; position: relative; max-width: 240px; }
+  .ai-hero p { font-size: 13.5px; color: rgba(232,234,243,0.75); line-height: 1.5; margin-bottom: 18px; position: relative; max-width: 250px; }
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--ink);
+    color: var(--bg-void);
+    border: none;
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 12px 18px;
+    border-radius: 100px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s ease;
+  }
+  .cta-btn:active { transform: scale(0.96); }
+
+  .section-label {
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 22px 0 12px;
+  }
+
+  .stat-row { display: flex; gap: 10px; margin-bottom: 6px; }
+  .stat-card {
+    flex: 1;
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 14px;
+  }
+  .stat-card .num { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 700; }
+  .stat-card .lbl { font-size: 11.5px; color: var(--ink-dim); margin-top: 2px; }
+  .stat-card.teal .num { color: var(--teal-soft); }
+  .stat-card.violet .num { color: var(--violet-soft); }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .history-item:last-child { border-bottom: none; }
+  .hist-icon {
+    width: 38px; height: 38px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .history-item .body { flex: 1; min-width: 0; }
+  .history-item .body .t { font-size: 13.5px; font-weight: 600; }
+  .history-item .body .d { font-size: 11.5px; color: var(--ink-faint); margin-top: 1px; }
+  .severity-chip {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 100px;
+    flex-shrink: 0;
+  }
+
+  /* ================= CHECK SCREEN ================= */
+  .check-header { padding: 8px 24px 12px; flex-shrink: 0; }
+  .check-header h1 { font-size: 20px; font-weight: 700; }
+  .check-header p { font-size: 13px; color: var(--ink-dim); margin-top: 3px; }
+
+  .progress-track {
+    display: flex; gap: 5px;
+    padding: 0 24px 18px;
+    flex-shrink: 0;
+  }
+  .progress-track .seg { flex: 1; height: 3px; border-radius: 3px; background: var(--glass-border); }
+  .progress-track .seg.done { background: var(--teal); }
+
+  .check-body { padding: 0 24px 24px; flex: 1; }
+
+  .symptom-chip-grid { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 22px; }
+  .symptom-chip {
+    padding: 10px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-fill);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-dim);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .symptom-chip.selected {
+    background: rgba(109,40,217,0.25);
+    border-color: var(--violet-soft);
+    color: var(--ink);
+  }
+
+  .input-box {
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 16px;
+    font-size: 14px;
+    color: var(--ink);
+    width: 100%;
+    min-height: 90px;
+    resize: none;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 20px;
+  }
+  .input-box::placeholder { color: var(--ink-faint); }
+  .input-box:focus { outline: none; border-color: var(--violet-soft); }
+
+  .slider-card {
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .slider-card .top-row { display: flex; justify-content: space-between; margin-bottom: 14px; }
+  .slider-card .top-row .lbl { font-size: 13.5px; font-weight: 600; }
+  .slider-card .top-row .val { font-size: 13px; font-weight: 700; color: var(--teal-soft); }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--teal) 0%, var(--amber) 50%, var(--red) 100%);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 3px solid var(--bg-navy);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+
+  .duration-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .duration-opt {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-fill);
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    cursor: pointer;
+  }
+  .duration-opt.selected { background: rgba(20,184,166,0.15); border-color: var(--teal); color: var(--teal-soft); }
+
+  .bottom-action { padding: 16px 24px 22px; flex-shrink: 0; background: linear-gradient(0deg, var(--bg-navy) 60%, transparent); }
+  .primary-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--violet), #8b3fe8);
+    color: white;
+    border: none;
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 16px;
+    border-radius: 16px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px -6px rgba(109,40,217,0.5);
+    transition: transform 0.15s ease;
+  }
+  .primary-btn:active { transform: scale(0.98); }
+  .ghost-btn {
+    width: 100%;
+    background: transparent;
+    color: var(--ink-dim);
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  /* ================= ANALYZING SCREEN ================= */
+  .analyzing-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  .pulse-orb {
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 32px;
+  }
+  .pulse-orb .core {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--violet-soft), var(--teal));
+    z-index: 3;
+    box-shadow: 0 0 40px rgba(139,92,246,0.6);
+  }
+  .pulse-orb .ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px solid rgba(139,92,246,0.4);
+    animation: ripple 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
+  }
+  .pulse-orb .ring:nth-child(2) { animation-delay: 0.8s; }
+  .pulse-orb .ring:nth-child(3) { animation-delay: 1.6s; }
+  @keyframes ripple {
+    0% { width: 64px; height: 64px; opacity: 0.8; border-color: rgba(139,92,246,0.6); }
+    100% { width: 150px; height: 150px; opacity: 0; border-color: rgba(20,184,166,0.1); }
+  }
+  .analyzing-wrap h2 { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .analyzing-wrap .step-text { font-size: 13.5px; color: var(--ink-dim); min-height: 20px; }
+
+  /* ================= RESULTS SCREEN ================= */
+  .results-scroll { padding: 8px 24px 24px; flex: 1; }
+  .urgency-banner {
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid;
+  }
+  .urgency-banner.low { background: rgba(20,184,166,0.1); border-color: rgba(20,184,166,0.35); }
+  .urgency-banner.med { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.35); }
+  .urgency-icon { width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .urgency-banner.low .urgency-icon { background: rgba(20,184,166,0.2); }
+  .urgency-banner.med .urgency-icon { background: rgba(245,158,11,0.2); }
+  .urgency-banner .t { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px; }
+  .urgency-banner.low .t { color: var(--teal-soft); }
+  .urgency-banner.med .t { color: var(--amber); }
+  .urgency-banner .d { font-size: 12.5px; color: var(--ink-dim); margin-top: 2px; }
+
+  .condition-card {
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .condition-card .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .condition-card .name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 15px; }
+  .condition-card .match { font-size: 11.5px; font-weight: 700; color: var(--teal-soft); background: rgba(20,184,166,0.12); padding: 3px 9px; border-radius: 100px; }
+  .condition-card .desc { font-size: 12.5px; color: var(--ink-dim); line-height: 1.55; }
+  .match-bar-track { height: 4px; background: var(--glass-border); border-radius: 4px; margin-top: 10px; overflow: hidden; }
+  .match-bar-fill { height: 100%; background: linear-gradient(90deg, var(--violet-soft), var(--teal)); border-radius: 4px; }
+
+  .rec-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .rec-item { display: flex; gap: 12px; align-items: flex-start; padding: 4px 0; }
+  .rec-check { width: 20px; height: 20px; border-radius: 50%; background: rgba(20,184,166,0.15); border: 1px solid var(--teal); flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .rec-item .txt { font-size: 13px; color: var(--ink); line-height: 1.5; }
+
+  .disclaimer-box {
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed var(--glass-border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    line-height: 1.5;
+    margin-top: 18px;
+  }
+
+  /* ================= WELLNESS SCREEN ================= */
+  .wellness-content { padding: 4px 24px 24px; }
+  .ring-card {
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 22px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+  .ring-visual { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
+  .ring-visual svg { transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-center .n { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 700; }
+  .ring-center .l { font-size: 9.5px; color: var(--ink-faint); }
+  .ring-card .info h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .ring-card .info p { font-size: 12.5px; color: var(--ink-dim); line-height: 1.5; }
+
+  .habit-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .habit-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .habit-row .body { flex: 1; }
+  .habit-row .t { font-size: 13.5px; font-weight: 600; }
+  .habit-row .d { font-size: 11.5px; color: var(--ink-faint); margin-top: 1px; }
+  .habit-check { width: 24px; height: 24px; border-radius: 8px; border: 1.5px solid var(--glass-border); flex-shrink: 0; }
+  .habit-check.done { background: var(--teal); border-color: var(--teal); display: flex; align-items: center; justify-content: center; }
+
+  .tip-card {
+    background: linear-gradient(135deg, rgba(20,184,166,0.12), rgba(76,29,149,0.12));
+    border: 1px solid rgba(94,234,212,0.25);
+    border-radius: 18px;
+    padding: 16px;
+    margin-top: 20px;
+  }
+  .tip-card .lbl { font-size: 11px; font-weight: 700; color: var(--teal-soft); margin-bottom: 6px; }
+  .tip-card p { font-size: 13px; line-height: 1.55; color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span style="display:flex;gap:5px;align-items:center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 8L12 4L22 8V12C22 17 17.5 21 12 22C6.5 21 2 17 2 12V8Z" stroke="currentColor" stroke-width="2" opacity="0.6"/></svg>
+      <svg width="18" height="12" viewBox="0 0 24 16" fill="none"><rect x="1" y="1" width="19" height="14" rx="3" stroke="currentColor" stroke-width="1.5" opacity="0.6"/><rect x="3" y="3" width="12" height="10" rx="1.5" fill="currentColor" opacity="0.8"/></svg>
+    </span>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div class="screen active" id="screen-home">
+    <div class="home-content">
+      <div class="greeting-row">
+        <div>
+          <h1>Hi, Indushree</h1>
+          <div class="sub">How are you feeling today?</div>
+        </div>
+        <div class="avatar-ring">I</div>
+      </div>
+
+      <div class="ai-hero" onclick="showScreen('check')">
+        <div class="tag"><span class="dot-pulse"></span>AI SYMPTOM ANALYSIS</div>
+        <h2>Something feels off? Let's figure it out together.</h2>
+        <p>Describe your symptoms and get instant, evidence-based guidance in under 2 minutes.</p>
+        <button class="cta-btn">
+          Start check
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card teal">
+          <div class="num">92%</div>
+          <div class="lbl">Wellness score</div>
+        </div>
+        <div class="stat-card violet">
+          <div class="num">3</div>
+          <div class="lbl">Checks this month</div>
+        </div>
+      </div>
+
+      <div class="section-label">Recent checks</div>
+      <div>
+        <div class="history-item">
+          <div class="hist-icon" style="background:rgba(245,158,11,0.15);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18A2 2 0 003.54 21H20.46A2 2 0 0022.18 18L13.71 3.86A2 2 0 0010.29 3.86Z" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="body">
+            <div class="t">Migraine with aura</div>
+            <div class="d">Yesterday, 8:14 PM</div>
+          </div>
+          <div class="severity-chip" style="background:rgba(245,158,11,0.15);color:var(--amber);">MODERATE</div>
+        </div>
+        <div class="history-item">
+          <div class="hist-icon" style="background:rgba(20,184,166,0.15);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#14B8A6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="body">
+            <div class="t">Seasonal allergies</div>
+            <div class="d">4 days ago</div>
+          </div>
+          <div class="severity-chip" style="background:rgba(20,184,166,0.15);color:var(--teal-soft);">MILD</div>
+        </div>
+        <div class="history-item">
+          <div class="hist-icon" style="background:rgba(20,184,166,0.15);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#14B8A6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="body">
+            <div class="t">Muscle strain, lower back</div>
+            <div class="d">Last week</div>
+          </div>
+          <div class="severity-chip" style="background:rgba(20,184,166,0.15);color:var(--teal-soft);">MILD</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHECK FLOW ============ -->
+  <div class="screen" id="screen-check">
+    <div class="check-header">
+      <h1>What's bothering you?</h1>
+      <p>Select all symptoms that apply</p>
+    </div>
+    <div class="progress-track">
+      <div class="seg done"></div><div class="seg"></div><div class="seg"></div>
+    </div>
+    <div class="check-body">
+      <div class="symptom-chip-grid">
+        <div class="symptom-chip selected">Headache</div>
+        <div class="symptom-chip">Fever</div>
+        <div class="symptom-chip selected">Fatigue</div>
+        <div class="symptom-chip">Nausea</div>
+        <div class="symptom-chip">Sore throat</div>
+        <div class="symptom-chip">Dizziness</div>
+        <div class="symptom-chip">Cough</div>
+        <div class="symptom-chip">Chest pain</div>
+        <div class="symptom-chip">Sensitivity to light</div>
+      </div>
+
+      <textarea class="input-box" placeholder="Anything else? Describe how it feels, when it started, what makes it worse...">Throbbing pain on the left side of my head, started this morning. Bright light makes it worse.</textarea>
+    </div>
+    <div class="bottom-action">
+      <button class="primary-btn" onclick="showScreen('check2')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ============ CHECK FLOW 2 ============ -->
+  <div class="screen" id="screen-check2">
+    <div class="check-header">
+      <h1>Help us understand severity</h1>
+      <p>This shapes how we prioritize your results</p>
+    </div>
+    <div class="progress-track">
+      <div class="seg done"></div><div class="seg done"></div><div class="seg"></div>
+    </div>
+    <div class="check-body">
+      <div class="slider-card">
+        <div class="top-row"><span class="lbl">Pain intensity</span><span class="val" id="painVal">6 / 10</span></div>
+        <input type="range" min="1" max="10" value="6" oninput="document.getElementById('painVal').textContent=this.value+' / 10'">
+      </div>
+
+      <div class="section-label" style="margin-top:4px;">How long has this lasted?</div>
+      <div class="duration-grid">
+        <div class="duration-opt selected">Few hours</div>
+        <div class="duration-opt">1–2 days</div>
+        <div class="duration-opt">This week</div>
+        <div class="duration-opt">2+ weeks</div>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="primary-btn" onclick="startAnalysis()">Analyze symptoms</button>
+      <button class="ghost-btn" onclick="showScreen('check')">Back</button>
+    </div>
+  </div>
+
+  <!-- ============ ANALYZING ============ -->
+  <div class="screen" id="screen-analyzing">
+    <div class="analyzing-wrap">
+      <div class="pulse-orb">
+        <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+        <div class="core"></div>
+      </div>
+      <h2>Analyzing your symptoms</h2>
+      <div class="step-text" id="analyzeStep">Cross-referencing medical patterns...</div>
+    </div>
+  </div>
+
+  <!-- ============ RESULTS ============ -->
+  <div class="screen" id="screen-results">
+    <div class="results-scroll">
+      <div class="section-label" style="margin-top:6px;">Your results</div>
+
+      <div class="urgency-banner med">
+        <div class="urgency-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18A2 2 0 003.54 21H20.46A2 2 0 0022.18 18L13.71 3.86A2 2 0 0010.29 3.86Z" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="t">Moderate — monitor closely</div>
+          <div class="d">See a doctor if symptoms worsen in 24h</div>
+        </div>
+      </div>
+
+      <div class="section-label">Likely explanations</div>
+
+      <div class="condition-card">
+        <div class="top">
+          <div class="name">Migraine with aura</div>
+          <div class="match">78% match</div>
+        </div>
+        <div class="desc">Unilateral throbbing pain combined with light sensitivity strongly suggests a migraine episode, especially given the sudden onset.</div>
+        <div class="match-bar-track"><div class="match-bar-fill" style="width:78%;"></div></div>
+      </div>
+
+      <div class="condition-card">
+        <div class="top">
+          <div class="name">Tension headache</div>
+          <div class="match">41% match</div>
+        </div>
+        <div class="desc">Possible but less likely — tension headaches typically present as a dull, band-like pressure rather than throbbing.</div>
+        <div class="match-bar-track"><div class="match-bar-fill" style="width:41%;"></div></div>
+      </div>
+
+      <div class="section-label">Recommended next steps</div>
+      <div class="rec-list">
+        <div class="rec-item">
+          <div class="rec-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#14B8A6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="txt">Rest in a dark, quiet room and stay hydrated</div>
+        </div>
+        <div class="rec-item">
+          <div class="rec-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#14B8A6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="txt">Track triggers — sleep, food, and screen time — for your next visit</div>
+        </div>
+        <div class="rec-item">
+          <div class="rec-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#14B8A6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="txt">Book a neurologist consult if this recurs 3+ times this month</div>
+        </div>
+      </div>
+
+      <div class="disclaimer-box">Vitalis provides informational guidance only and does not replace professional medical diagnosis. In an emergency, contact local emergency services immediately.</div>
+    </div>
+    <div class="bottom-action">
+      <button class="primary-btn" onclick="showScreen('home')">Back to home</button>
+    </div>
+  </div>
+
+  <!-- ============ WELLNESS ============ -->
+  <div class="screen" id="screen-wellness">
+    <div class="wellness-content">
+      <div class="section-label" style="margin-top:6px;">Wellness</div>
+
+      <div class="ring-card">
+        <div class="ring-visual">
+          <svg width="92" height="92" viewBox="0 0 92 92">
+            <circle cx="46" cy="46" r="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+            <circle cx="46" cy="46" r="40" fill="none" stroke="url(#grad1)" stroke-width="8" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="30"/>
+            <defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#14B8A6"/></linearGradient></defs>
+          </svg>
+          <div class="ring-center"><div class="n">88</div><div class="l">SCORE</div></div>
+        </div>
+        <div class="info">
+          <h3>Trending upward</h3>
+          <p>Better sleep consistency this week has improved your overall score by 6 points.</p>
+        </div>
+      </div>
+
+      <div class="section-label">Today's habits</div>
+
+      <div class="habit-row">
+        <div class="habit-icon" style="background:rgba(20,184,166,0.15);">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 6 9 6 14A6 6 0 0018 14C18 9 12 2 12 2Z" stroke="#14B8A6" stroke-width="2" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="body"><div class="t">Drink 8 glasses of water</div><div class="d">6 of 8 logged</div></div>
+        <div class="habit-check done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#0B1220" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+
+... (file continues)
